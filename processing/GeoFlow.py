@@ -38,7 +38,11 @@ from qgis.core import (
     QgsProcessingParameterCrs,
     QgsProcessingParameterEnum,
     QgsProcessingException,
+    QgsCoordinateReferenceSystem,
     QgsMessageLog,
+    QgsMapLayer,
+    QgsVectorLayer,
+    QgsVectorFileWriter,
     Qgis
 )
 from qgis.PyQt.QtCore import QCoreApplication
@@ -47,7 +51,7 @@ import subprocess
 import sqlite3
 
 
-class LiDARTo3DProcessingAlgorithm(QgsProcessingAlgorithm):
+class GeoFLow(QgsProcessingAlgorithm):
     ATTRIBUTE_FIELD = 'ATTRIBUTE_FIELD'
     RECONSTRUCT_JSON = 'RECONSTRUCT_JSON'
     INPUT_POINTCLOUD = 'INPUT_POINTCLOUD'
@@ -59,20 +63,27 @@ class LiDARTo3DProcessingAlgorithm(QgsProcessingAlgorithm):
     PROCESS_SELECTION = 'PROCESS_SELECTION'
 
     def initAlgorithm(self, config=None):
-        # Dynamically fetch attributes from the active layer
-        active_layer = iface.activeLayer()
-        if not active_layer:
-            raise QgsProcessingException('No active layer found.')
+        ATTRIBUTE_FIELD = 'ATTRIBUTE_FIELD'
 
-        fields = active_layer.fields()
-        attributes = list(field.name() for field in fields)
+        # Dynamically fetch attributes from the active layer
+        layer = iface.activeLayer()
+        if layer:
+             # Check if the active layer is a vector layer
+            if layer.type() == QgsMapLayer.VectorLayer:
+                fields = [field.name() for field in layer.fields()]
+            else:
+                fields = ['[No fields available - not a vector layer]']
+        else:
+            # Default to an empty dropdown or placeholder if no active layer
+            fields = ['[No active layer found]']
+
 
         # Attribute field parameter
         self.addParameter(
             QgsProcessingParameterEnum(
                 self.ATTRIBUTE_FIELD,
                 self.tr('Select Attribute for Object ID'),
-                options=attributes,
+                options=fields,
                 optional=True
             )
         )
@@ -135,6 +146,7 @@ class LiDARTo3DProcessingAlgorithm(QgsProcessingAlgorithm):
                 self.tr('Path to geof.exe'),
                 behavior=QgsProcessingParameterFile.File,
                 defaultValue='C:/Program Files/Geoflow/bin/geof.exe'.replace('\\', '/')
+            )
         )
 
         # Process selection: All or Selected Features
@@ -199,21 +211,31 @@ class LiDARTo3DProcessingAlgorithm(QgsProcessingAlgorithm):
         process_selection = self.parameterAsEnum(parameters, self.PROCESS_SELECTION, context)
         output_epsg_string = f"EPSG:{output_ogr_epsg}"
 
-        # Get user-specified GeoPackage file path
-        # Create the GeoPackage if it does not exist
+
+        # Create GeoPackage if it does not exist
         if not os.path.exists(output_gpkg):
             feedback.pushInfo(f"Creating new GeoPackage: {output_gpkg}")
             try:
-                with sqlite3.connect(output_gpkg) as conn:
-                    conn.execute("PRAGMA application_id = 1196444487;")  # Set GeoPackage application ID
-            except sqlite3.Error as e:
+                # Use QgsVectorFileWriter to create an empty GeoPackage
+                temp_layer = QgsVectorLayer("Point?crs=EPSG:4326", "temp", "memory")
+                error = QgsVectorFileWriter.writeAsVectorFormat(
+                    temp_layer,
+                    output_gpkg,
+                    "UTF-8",
+                    QgsCoordinateReferenceSystem("EPSG:4326"),
+                    "GPKG"
+                )
+                if error[0] != QgsVectorFileWriter.NoError:
+                    raise QgsProcessingException(f"Error creating GeoPackage: {error[1]}")
+                del temp_layer  # Cleanup temporary layer
+            except Exception as e:
                 raise QgsProcessingException(f"Error creating GeoPackage: {e}")
+
 
         # Determine features to process
         features = layer.selectedFeatures() if process_selection == 1 else layer.getFeatures()
         features = list(layer.selectedFeatures() if process_selection == 1 else layer.getFeatures())
 
-        if not features:
 
         for feature in features:
             # Fetch the value of the selected attribute
@@ -261,17 +283,19 @@ class LiDARTo3DProcessingAlgorithm(QgsProcessingAlgorithm):
         return self.tr('LiDAR to 3D Geometry')
 
     def group(self):
-        return self.tr('Innotech-3D')
+        return self.tr('GeoFlow interface')
 
     def groupId(self):
-        return 'innotech_3d'
+        return 'GeoFlow_interface'
 
     def shortHelpString(self):
         return self.tr("This script converts LiDAR data into 3D building geometries using geoflow.")
 
+  
     def createInstance(self):
-        return LiDARTo3DProcessingAlgorithm()
+        return  GeoFLow()
+
 
     @staticmethod
     def tr(message):
-        return QCoreApplication.translate('LiDARTo3DProcessingAlgorithm', message)
+        return QCoreApplication.translate('GeoFLow', message)

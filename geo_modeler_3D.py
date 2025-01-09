@@ -24,15 +24,17 @@
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
+from qgis.core import QgsApplication
 
 # Initialize Qt resources from file resources.py
 from .resources import *
 # Import the code for the dialog
-from .3D_geo_modeler_dialog import 3DGeoModelerDialog
+from .geo_modeler_3D_dialog import GeoModelerDialog3D
+from .provider import MyProcessingProvider
 import os.path
 
 
-class 3DGeoModeler:
+class GeoModeler3D:
     """QGIS Plugin Implementation."""
 
     def __init__(self, iface):
@@ -45,6 +47,8 @@ class 3DGeoModeler:
         """
         # Save reference to the QGIS interface
         self.iface = iface
+        # initialize the provider
+        self.provider = None
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
         # initialize locale
@@ -160,12 +164,17 @@ class 3DGeoModeler:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ':/plugins/3D_geo_modeler/icon.png'
+        icon_path = ':/plugins/geo_modeler_3D/icon.png'
         self.add_action(
             icon_path,
             text=self.tr(u'3D GeoModeler'),
             callback=self.run,
             parent=self.iface.mainWindow())
+        
+        """Add the processing provider."""
+        self.provider = MyProcessingProvider()
+        QgsApplication.processingRegistry().addProvider(self.provider)
+        
 
         # will be set False in run()
         self.first_start = True
@@ -178,6 +187,10 @@ class 3DGeoModeler:
                 self.tr(u'&3D GeoModeler'),
                 action)
             self.iface.removeToolBarIcon(action)
+            
+        """Remove the processing provider."""
+        if self.provider:
+            QgsApplication.processingRegistry().removeProvider(self.provider)
 
 
     def run(self):
@@ -187,7 +200,7 @@ class 3DGeoModeler:
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
         if self.first_start == True:
             self.first_start = False
-            self.dlg = 3DGeoModelerDialog()
+            self.dlg = GeoModelerDialog3D()
 
         # show the dialog
         self.dlg.show()
