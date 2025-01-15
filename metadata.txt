@@ -9,23 +9,23 @@ description=A suite of tools and guides for generating surfaces and 3D models.
 version=1.0
 author=Esbern Holmes /Roskilde University
 email=holmes@ruc.dk
-
-about=This plugin is a suite of tools and guides designed to simplify the creation of 3D models and surfaces from various geospatial data sources. It supports generating 3D models for use directly in QGIS, as well as exporting to formats like OBJ and CityJSON for further processing and visualisation.
+license=GPL-3.0
+about=This plugin is a suite of tools and guides designed to simplify the creation of 3D models and surfaces from various geospatial data sources. It supports generating 3D models for use directly in QGIS, as well as exporting to formats like OBJ and CityJSON for further processing and visualisation. This plugin was developed as part of the Innotech – TaskForce Interreg project to support urban planning technology. We encourage users to contact us to contribute to follow-up research.
 
 tracker=http://bugs
-repository=http://repo
+repository=https://github.com/Esbern/3d_geo_modeler
 # End of mandatory metadata
 
 # Recommended items:
 
-hasProcessingProvider=no
+hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 # changelog=
 
 # Tags are comma separated with spaces allowed
-tags=python
+tags=python, Lidar,Urban planning
 
-homepage=http://homepage
+homepage=https://github.com/Esbern/3d_geo_modeler
 category=Plugins
 icon=icon.png
 # experimental flag
