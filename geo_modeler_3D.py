@@ -22,9 +22,20 @@
  ***************************************************************************/
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
-from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
-from qgis.core import QgsApplication
+from qgis.PyQt.QtGui import QIcon, QColor
+from qgis.PyQt.QtWidgets import QAction, QMessageBox
+from qgis.core import(
+    QgsApplication,
+    QgsProcessing,
+    QgsProcessingAlgorithm,
+    QgsProcessingParameterString,
+    QgsProcessingException,
+    QgsVectorLayer,
+    QgsFillSymbol,
+    QgsLinePatternFillSymbolLayer,
+    QgsSimpleLineSymbolLayer,
+    QgsProject
+)
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -32,6 +43,8 @@ from .resources import *
 from .geo_modeler_3D_dialog import GeoModelerDialog3D
 from .provider import MyProcessingProvider
 import os.path
+from qgis.core import QgsProject, QgsVectorLayer
+import processing
 
 
 class GeoModeler3D:
@@ -171,6 +184,30 @@ class GeoModeler3D:
             callback=self.run,
             parent=self.iface.mainWindow())
         
+        # Add Step 0: Link to guide
+        self.add_action(
+            icon_path,
+            text=self.tr(u'Step 0: Read the Guide'),
+            callback=self.open_guide,
+            parent=self.iface.mainWindow()
+        )
+ 
+        # Add Step 1: Load GeoJSON file
+        self.add_action(
+            icon_path,
+            text=self.tr(u'Step 1: Access the Index File'),
+            callback=self.call_load_geojson,
+            parent=self.iface.mainWindow()
+        )
+  
+        # Add Step 12: Load GeoJSON file
+        self.add_action(
+            icon_path,
+            text=self.tr(u'Step 2: download laz files'),
+            callback=self.call_download_laz,
+            parent=self.iface.mainWindow()
+        )
+        
         """Add the processing provider."""
         self.provider = MyProcessingProvider()
         QgsApplication.processingRegistry().addProvider(self.provider)
@@ -178,8 +215,57 @@ class GeoModeler3D:
 
         # will be set False in run()
         self.first_start = True
-
-
+    
+    def open_guide(self):
+        """Open the guide link in a message box."""
+        QMessageBox.information(
+            self.iface.mainWindow(),
+            "3D GeoModeler Guide",
+            "Visit the guide at: https://geogitmatics.online"
+    )
+        
+    def call_load_geojson(self):
+        """Call the processing script to load GeoJSON."""
+        try:
+            params = {
+                'URL': 'https://raw.githubusercontent.com/Esbern/3d_geo_modeler_data/refs/heads/main/punktsky_grid.geojson'
+            }
+            result = processing.run("3D_geo_modeler:load_geojson", params)
+            QMessageBox.information(
+                self.iface.mainWindow(),
+                "Success",
+                f"Result: {result['Result']}"
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self.iface.mainWindow(),
+                "Error",
+                f"Could not load GeoJSON: {e}"
+            )
+            
+    def call_download_laz(self):
+        """Call the processing script to display its dialog."""
+        try:
+            result = processing.execAlgorithmDialog("3D_geo_modeler:download_files_from_ftps")
+            if result:
+                QMessageBox.information(
+                    self.iface.mainWindow(),
+                    "Success",
+                    "The processing script ran successfully."
+                )
+            else:
+                QMessageBox.information(
+                    self.iface.mainWindow(),
+                    "Cancelled",
+                    "The user cancelled the processing dialog."
+                )
+        except Exception as e:
+            QMessageBox.critical(
+                self.iface.mainWindow(),
+                "Error",
+                f"Could not run the processing script: {e}"
+            )
+            
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
@@ -211,3 +297,5 @@ class GeoModeler3D:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
             pass
+
+
